@@ -114,8 +114,6 @@ button:hover {
   </select>
 </div>
 
-<button onclick="calculateBMI()">Calculate BMI</button>
-
 <div id="bmi-results" class="results" style="display: none;">
   <div><strong>BMI:</strong> <span id="bmi-value"></span></div>
   <div><strong>Height:</strong> <span id="height-imp"></span> in (<span id="height-met"></span> cm)</div>
@@ -138,8 +136,6 @@ button:hover {
   </select>
 </div>
 
-<button onclick="calculateWeight()">Calculate Weight</button>
-
 <div id="weight-results" class="results" style="display: none;">
   <div><strong>Weight:</strong> <span id="w-weight-lbs"></span> lbs (<span id="w-weight-kg"></span> kg)</div>
   <div><strong>Height:</strong> <span id="w-height-in"></span> in (<span id="w-height-cm"></span> cm)</div>
@@ -158,7 +154,6 @@ function calculateBMI() {
   const wUnit = document.getElementById('bmi-weight-unit').value;
 
   if (isNaN(hVal) || isNaN(wVal) || hVal <= 0 || wVal <= 0) {
-    alert("Please enter valid positive numbers for height and weight.");
     return;
   }
 
@@ -200,7 +195,6 @@ function calculateWeight() {
   const hUnit = document.getElementById('weight-height-unit').value;
 
   if (isNaN(bmiVal) || isNaN(hVal) || bmiVal <= 0 || hVal <= 0) {
-    alert("Please enter valid positive numbers for BMI and height.");
     return;
   }
 
@@ -217,6 +211,145 @@ function calculateWeight() {
   document.getElementById('w-height-cm').textContent = height_cm.toFixed(2);
 
   document.getElementById('weight-results').style.display = 'block';
+}
+
+// ===== Live calculation + Auto unit conversion =====
+
+function convertValue(val, fromUnit, toUnit, kind) {
+  if (fromUnit === toUnit) return val;
+  if (kind === 'height') {
+    if (fromUnit === 'in' && toUnit === 'cm') return val * 2.54;
+    if (fromUnit === 'cm' && toUnit === 'in') return val / 2.54;
+  } else if (kind === 'weight') {
+    if (fromUnit === 'lbs' && toUnit === 'kg') return val * 0.45359237;
+    if (fromUnit === 'kg' && toUnit === 'lbs') return val / 0.45359237;
+  }
+  return val;
+}
+
+function initUnitMemory() {
+  const bmiH = document.getElementById('bmi-height-unit');
+  const bmiW = document.getElementById('bmi-weight-unit');
+  const wH   = document.getElementById('weight-height-unit');
+
+  if (bmiH) bmiH.dataset.prevUnit = bmiH.value;
+  if (bmiW) bmiW.dataset.prevUnit = bmiW.value;
+  if (wH)   wH.dataset.prevUnit   = wH.value;
+}
+
+function setupBMILive() {
+  const hInput  = document.getElementById('bmi-height-val');
+  const wInput  = document.getElementById('bmi-weight-val');
+  const hSelect = document.getElementById('bmi-height-unit');
+  const wSelect = document.getElementById('bmi-weight-unit');
+
+  function liveUpdate() {
+    const hVal = parseFloat(hInput.value);
+    const wVal = parseFloat(wInput.value);
+    if (!isNaN(hVal) && hVal > 0 && !isNaN(wVal) && wVal > 0) {
+      calculateBMI();
+    }
+  }
+
+  // Live on typing
+  [hInput, wInput].forEach(el => {
+    if (el) {
+      el.addEventListener('input', liveUpdate);
+      el.addEventListener('change', liveUpdate);
+    }
+  });
+
+  // Height unit change → auto-convert value then live update
+  if (hSelect) {
+    hSelect.addEventListener('change', () => {
+      const oldU = hSelect.dataset.prevUnit || 'in';
+      const newU = hSelect.value;
+      const val = parseFloat(hInput.value);
+      if (!isNaN(val) && val > 0) {
+        const conv = convertValue(val, oldU, newU, 'height');
+        hInput.value = conv.toFixed(2);
+      }
+      hSelect.dataset.prevUnit = newU;
+      liveUpdate();
+    });
+  }
+
+  // Weight unit change → auto-convert value then live update
+  if (wSelect) {
+    wSelect.addEventListener('change', () => {
+      const oldU = wSelect.dataset.prevUnit || 'lbs';
+      const newU = wSelect.value;
+      const val = parseFloat(wInput.value);
+      if (!isNaN(val) && val > 0) {
+        const conv = convertValue(val, oldU, newU, 'weight');
+        wInput.value = conv.toFixed(1);
+      }
+      wSelect.dataset.prevUnit = newU;
+      liveUpdate();
+    });
+  }
+}
+
+function setupWeightLive() {
+  const bmiInput = document.getElementById('weight-bmi-val');
+  const hInput   = document.getElementById('weight-height-val');
+  const hSelect  = document.getElementById('weight-height-unit');
+
+  function liveUpdate() {
+    const bVal = parseFloat(bmiInput.value);
+    const hVal = parseFloat(hInput.value);
+    if (!isNaN(bVal) && bVal > 0 && !isNaN(hVal) && hVal > 0) {
+      calculateWeight();
+    }
+  }
+
+  [bmiInput, hInput].forEach(el => {
+    if (el) {
+      el.addEventListener('input', liveUpdate);
+      el.addEventListener('change', liveUpdate);
+    }
+  });
+
+  if (hSelect) {
+    hSelect.addEventListener('change', () => {
+      const oldU = hSelect.dataset.prevUnit || 'in';
+      const newU = hSelect.value;
+      const val = parseFloat(hInput.value);
+      if (!isNaN(val) && val > 0) {
+        const conv = convertValue(val, oldU, newU, 'height');
+        hInput.value = conv.toFixed(2);
+      }
+      hSelect.dataset.prevUnit = newU;
+      liveUpdate();
+    });
+  }
+}
+
+function initLiveTool() {
+  initUnitMemory();
+  setupBMILive();
+  setupWeightLive();
+
+  // Show results immediately with default values
+  setTimeout(() => {
+    const h1 = parseFloat(document.getElementById('bmi-height-val').value);
+    const w1 = parseFloat(document.getElementById('bmi-weight-val').value);
+    if (!isNaN(h1) && h1 > 0 && !isNaN(w1) && w1 > 0) {
+      calculateBMI();
+    }
+
+    const b2 = parseFloat(document.getElementById('weight-bmi-val').value);
+    const h2 = parseFloat(document.getElementById('weight-height-val').value);
+    if (!isNaN(b2) && b2 > 0 && !isNaN(h2) && h2 > 0) {
+      calculateWeight();
+    }
+  }, 60);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initLiveTool);
+} else {
+  initLiveTool();
 }
 </script>
 </body>
